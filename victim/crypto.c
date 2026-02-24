@@ -3,28 +3,65 @@
 #include <stdio.h>
 #include <string.h>
 
-void InitializeSymmetricCrypto(HCRYPTPROV *hProv, HCRYPTKEY *hKey, BYTE **keyBlob) {
-    DWORD blobLen = 0;
+void InitializeCrypto(HCRYPTPROV *hProv, HCRYPTKEY *hAesKey, HCRYPTKEY *hRsaKey, BYTE **aesKeyBlob) {
+    DWORD aesBlobLen = 0, rsaBlobLen = 0;
+    BYTE *rsaKeyBlob;
     if (!CryptAcquireContext(hProv, NULL, NULL, PROV_RSA_AES, CRYPT_VERIFYCONTEXT)) {
         printf("Error at CryptAcquireContext %d\n", GetLastError());
         return;
     }
-    if (!CryptGenKey(*hProv, CALG_AES_128, CRYPT_EXPORTABLE, hKey)) {
-        printf("Error at CryptGenKey: %d\n", GetLastError());
+    if (!CryptGenKey(*hProv, CALG_AES_128, CRYPT_EXPORTABLE, hAesKey)) {
+        printf("Error at CryptGenKey for AES: %d\n", GetLastError());
         CryptReleaseContext(*hProv, 0);
         return;
     }
-    if (CryptExportKey(*hKey, 0, PLAINTEXTKEYBLOB, 0, NULL, &blobLen)) {
-        *keyBlob = (BYTE*)malloc(blobLen);
+    if (!CryptGenKey(*hProv, AT_KEYEXCHANGE, (2048 << 16) | CRYPT_EXPORTABLE, hRsaKey)) {
+        printf("Error at CryptGenKey for RSA: %d\n", GetLastError());
+        CryptReleaseContext(*hProv, 0);
+        return;
+    }
+    if (CryptExportKey(*hAesKey, 0, PLAINTEXTKEYBLOB, 0, NULL, &aesBlobLen)) {
+        *aesKeyBlob = (BYTE*)malloc(aesBlobLen);
     } else {
         printf("Error getting blob length: %d\n", GetLastError());
     }
-    if (*keyBlob && CryptExportKey(*hKey, 0, PLAINTEXTKEYBLOB, 0, *keyBlob, &blobLen)) {
-        printf("Export successful! Blob size: %ld bytes\nAES 128 key: ", blobLen);
-        for (DWORD i = 12; i < blobLen; i++) {
-            printf("%02x", (*keyBlob)[i]);
+    if (*aesKeyBlob && CryptExportKey(*hAesKey, 0, PLAINTEXTKEYBLOB, 0, *aesKeyBlob, &aesBlobLen)) {
+        printf("Export successful! Blob size: %ld bytes\nAES 128 key: ", aesBlobLen);
+        for (DWORD i = 12; i < aesBlobLen; i++) {
+            printf("%02x", (*aesKeyBlob)[i]);
         }
         printf("\n");
+    }
+    if (CryptExportKey(*hRsaKey, 0, PRIVATEKEYBLOB, 0, NULL, &rsaBlobLen)) {
+        rsaKeyBlob = (BYTE*)malloc(rsaBlobLen);
+        CryptExportKey(*hRsaKey, 0, PRIVATEKEYBLOB, 0, rsaKeyBlob, &rsaBlobLen);
+        printf("RSA private key blob: ");
+        for (size_t i = 0; i < rsaBlobLen; i++) {
+            printf("%02x", rsaKeyBlob[i]);
+        }
+        printf("\n");
+    }
+    if (CryptExportKey(*hRsaKey, 0, PUBLICKEYBLOB, 0, NULL, &rsaBlobLen)) {
+        rsaKeyBlob = (BYTE*)malloc(rsaBlobLen);
+        CryptExportKey(*hRsaKey, 0, PUBLICKEYBLOB, 0, rsaKeyBlob, &rsaBlobLen);
+        printf("RSA public key blob: ");
+        for (size_t i = 0; i < rsaBlobLen; i++) {
+            printf("%02x", rsaKeyBlob[i]);
+        }
+        printf("\n");
+    }
+}
+
+void KeyEncrypt(BYTE **key, HCRYPTKEY hKey) {
+    BYTE *encryptedKey = (BYTE*)malloc(256);
+    DWORD encryptedKeyLen = 256;
+    DWORD keyLen = 16;
+    memcpy(encryptedKey, *key, 16);
+    if (CryptEncrypt(hKey, 0, TRUE, 0, encryptedKey, &encryptedKeyLen, keyLen)) {
+        free(*key);
+        *key = encryptedKey;
+    } else {
+        free(encryptedKey);
     }
 }
 
@@ -75,7 +112,29 @@ void HexToBytes(const char *hex, BYTE* bytes) {
     }
 }
 
-HCRYPTKEY ImportKey(char *hexStr, HCRYPTPROV hProv) {
+HCRYPTKEY ImportRSAPrivateKey(char *hexStr, HCRYPTPROV hProv) {
+    DWORD blobLen = strlen(hexStr) / 2;
+    BYTE *blobData = (BYTE*)malloc(blobLen);
+    HexToBytes(hexStr, blobData);
+    HCRYPTKEY hKey = 0;
+    CryptImportKey(hProv, blobData, blobLen, 0, 0, &hKey);
+    SecureZeroMemory(blobData, blobLen);
+    free(blobData);
+    return hKey;
+}
+
+HCRYPTKEY ImportRSAPublicKey(char *hexStr, HCRYPTPROV hProv) {
+    DWORD blobLen = strlen(hexStr) / 2;
+    BYTE *blobData = (BYTE*)malloc(blobLen);
+    HexToBytes(hexStr, blobData);
+    HCRYPTKEY hKey = 0;
+    CryptImportKey(hProv, blobData, blobLen, 0, CRYPT_EXPORTABLE, &hKey);
+    SecureZeroMemory(blobData, blobLen);
+    free(blobData);
+    return hKey;
+}
+
+HCRYPTKEY ImportAESKey(char *hexStr, HCRYPTPROV hProv) {
     BYTE hexRaw[16];
     HexToBytes(hexStr, hexRaw);
 
@@ -143,14 +202,33 @@ void FileDecrypt(char *path, HCRYPTPROV hProv, HCRYPTKEY hKey) {
     remove(path);
 }
 
-void FinalizeSymmetricCrypto(HCRYPTPROV *hProv, HCRYPTKEY *hKey, BYTE **keyBlob) {
+void KeyDecrypt(BYTE **key, HCRYPTKEY hKey) {
+    DWORD dwDataLen = 256; 
+    BYTE *decryptedKey = (BYTE*)malloc(dwDataLen);
+    if (decryptedKey == NULL) return;
+
+    memcpy(decryptedKey, *key, 256);
+
+    if (CryptDecrypt(hKey, 0, TRUE, 0, decryptedKey, &dwDataLen)) {
+        free(*key);
+        *key = (BYTE*)realloc(decryptedKey, dwDataLen);
+    } else {
+        free(decryptedKey);
+    }
+}
+
+void FinalizeCrypto(HCRYPTPROV *hProv, HCRYPTKEY *hAesKey, HCRYPTKEY *hRsaKey, BYTE **keyBlob) {
     if (keyBlob && *keyBlob) {
         free(*keyBlob);
         *keyBlob = NULL;
     }
-    if (hKey && *hKey) {
-        CryptDestroyKey(*hKey);
-        *hKey = 0;
+    if (hAesKey && *hAesKey) {
+        CryptDestroyKey(*hAesKey);
+        *hAesKey = 0;
+    }
+    if (hRsaKey && *hRsaKey) {
+        CryptDestroyKey(*hRsaKey);
+        *hRsaKey = 0;
     }
     if (hProv && *hProv) {
         CryptReleaseContext(*hProv, 0);

