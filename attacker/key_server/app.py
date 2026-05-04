@@ -54,7 +54,13 @@ def save_keys_to_csv(id_hex, public_blob_hex, private_blob_hex, filename='keys.c
         'pub': public_blob_hex,
         'priv': private_blob_hex
     }])
-    df.to_csv(filename, index=False, mode='a', header=not os.path.exists(filename))
+    
+    # Kiểm tra xem file đã tồn tại chưa TRƯỚC KHI ghi
+    file_exists = os.path.isfile(filename)
+    
+    # Luôn dùng mode='a' để ghi thêm vào cuối file
+    # header=not file_exists: Nếu file chưa có thì ghi header, có rồi thì thôi
+    df.to_csv(filename, index=False, mode='a', header=not file_exists)
 
 @app.route('/', methods=['GET'])
 def index():

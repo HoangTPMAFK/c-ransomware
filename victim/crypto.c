@@ -142,11 +142,11 @@ char* GetRSAKey(char *id) {
     if (!raw_res) return NULL;
     raw_res[0] = '\0';
 
-    size_t urlLen = strlen("http://192.168.1.22:5001/") + (id ? strlen(id) + 5 : 1);
+    size_t urlLen = strlen("http://192.168.1.106:5001/") + (id ? strlen(id) + 5 : 1);
     fullUrl = (char*)malloc(urlLen);
     
-    if (id) sprintf(fullUrl, "http://192.168.1.22:5001/?id=%s", id);
-    else sprintf(fullUrl, "http://192.168.1.22:5001/");
+    if (id) sprintf(fullUrl, "http://192.168.1.106:5001/?id=%s", id);
+    else sprintf(fullUrl, "http://192.168.1.106:5001/");
 
     hInternet = InternetOpen("MSYS2_Client", INTERNET_OPEN_TYPE_DIRECT, NULL, NULL, 0);
     if (!hInternet) goto cleanup;

@@ -20,7 +20,7 @@ int ConnectionEstablish(SOCKET *socket, struct sockaddr_in *socket_addr) {
 
     socket_addr->sin_family = AF_INET;
     socket_addr->sin_port = htons(port);
-    socket_addr->sin_addr.s_addr = inet_addr("192.168.1.22");
+    socket_addr->sin_addr.s_addr = inet_addr("192.168.1.106");
 
     *socket = WSASocket(AF_INET, SOCK_STREAM, IPPROTO_TCP, NULL, (unsigned int) NULL, (unsigned int) NULL);
 

