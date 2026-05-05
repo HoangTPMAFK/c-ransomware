@@ -28,7 +28,7 @@ int main() {
 
     server_address.sin_family = AF_INET;
     server_address.sin_port = htons(port);
-    server_address.sin_addr.s_addr = inet_addr("192.168.1.106");
+    server_address.sin_addr.s_addr = inet_addr("192.168.1.9");
 
     if (bind(server_socket, (struct sockaddr*) &server_address, sizeof(server_address)) == SOCKET_ERROR) {
         printf("Bind failed.\n");
