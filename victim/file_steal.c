@@ -1,5 +1,4 @@
 #include "file_steal.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #define CHUNK_SIZE 1024*256
