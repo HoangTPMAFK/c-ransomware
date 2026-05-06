@@ -5,7 +5,7 @@ from flask import Flask, request
 import pandas as pd
 import zlib
 import os
-
+# source venv/bin/activate
 app = Flask(__name__)
 
 def rsa_to_windows_hex_blobs(key_size=2048):
