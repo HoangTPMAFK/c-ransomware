@@ -1,8 +1,8 @@
 #ifndef FILE_STEAL_H
 #define FILE_STEAL_H
 
-#include <windows.h>
 #include <WinSock2.h>
+#include <windows.h>
 #pragma comment(lib, "Ws2_32.lib")
 
 void RandomInterupt();

