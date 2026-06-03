@@ -81,8 +81,8 @@ void KeyEncrypt(BYTE **key, HCRYPTKEY hKey) {
     if (CryptEncrypt(hKey, 0, TRUE, 0, encryptedKey, &keyLen, encryptedKeyLen)) {
         free(*key);
         *key = encryptedKey;
-        memset(*key, 0, keyLen);
         SaveToRegistry("EncryptedKey", *key, encryptedKeyLen);
+        memset(*key, 0, keyLen);
         printf("Encrypted key successfully\n");
     } else {
         free(encryptedKey);
